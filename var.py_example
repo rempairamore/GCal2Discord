@@ -1,0 +1,12 @@
+GOOGLE_CREDENTIALS_JSON = 'path/to/your/google-credentials.json'
+GOOGLE_CALENDAR_ID = 'your-google-calendar-id'
+DISCORD_BOT_TOKEN = 'your-discord-bot-token'
+DISCORD_GUILD_ID = 'your-discord-guild-id' # guildId is a unique server identifier.
+DISCORD_CHANNEL_ID = 'your-discord-channel-id'  # ID of the voice channel where the meetings will be held
+SYNC_INTERVAL = 300  # Interval in seconds to sync events (5 minutes)
+DAYS_IN_FUTURE = 10  # Number of days in the future to fetch events
+
+# Logging configuration
+SYNCED_EVENTS_FILE = 'synced_events.json'
+EVENT_LOG_FILE = 'event.log'
+LOG_SIZE_LIMIT = 200 * 1024 * 1024  # 200 MB
