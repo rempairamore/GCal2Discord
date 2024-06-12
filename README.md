@@ -31,28 +31,6 @@ Install the required packages:
 pip install -r requirements.txt
 ```
 
-### Create the var.py file:
-
-Create a var.py file in the project root directory and populate it with your credentials and configuration:
-
-```python
-
-# var.py
-
-GOOGLE_CREDENTIALS_JSON = 'path/to/your/google-credentials.json'
-GOOGLE_CALENDAR_ID = 'your-google-calendar-id'
-DISCORD_BOT_TOKEN = 'your-discord-bot-token'
-DISCORD_GUILD_ID = 'your-discord-guild-id'
-DISCORD_CHANNEL_ID = 'your-discord-channel-id'  # ID of the voice channel where the meetings will be held
-SYNC_INTERVAL = 300  # Interval in seconds to sync events (5 minutes)
-DAYS_IN_FUTURE = 10  # Number of days in the future to fetch events
-
-# Logging configuration
-SYNCED_EVENTS_FILE = 'synced_events.json'
-EVENT_LOG_FILE = 'event.log'
-LOG_SIZE_LIMIT = 200 * 1024 * 1024  # 200 MB
-```
-
 ## Setting Up Google Calendar API
 
 1. **Go to the [Google Cloud Console](https://console.cloud.google.com/)**
@@ -86,6 +64,53 @@ LOG_SIZE_LIMIT = 200 * 1024 * 1024  # 200 MB
 
 7. **Save the JSON credentials file:**
     - Save the JSON file in your project directory and update the `GOOGLE_CREDENTIALS_JSON` path in `var.py`.
+
+
+## Obtaining Discord IDs and Token
+
+To configure the bot, you'll need the Discord bot token, the guild ID (server ID), and the channel ID where the bot will post the events. Here’s how you can obtain them:
+1. **Create a Discord Bot**
+
+   - Go to the Discord Developer Portal.
+   - Click on "New Application" and give it a name.
+   - Go to the "Bot" tab on the left sidebar and click "Add Bot".
+   - Click "Yes, do it!" to confirm.
+   - Under the "TOKEN" section, click "Copy" to copy your bot token. Save this token as you'll need it for the DISCORD_BOT_TOKEN variable in var.py.
+
+2. **Get Your Guild ID**
+
+    Enable Developer Mode in Discord:
+       - Go to your Discord app.
+       - Click on the gear icon (User Settings) next to your username.
+       - Go to "Advanced" and enable "Developer Mode".
+    Right-click on your server icon in Discord and click "Copy ID". Save this ID as you'll need it for the DISCORD_GUILD_ID variable in var.py.
+
+3. **Get Your Channel ID**
+
+    In Discord, right-click on the channel where you want the bot to post events and click "Copy ID". Save this ID as you'll need it for the DISCORD_CHANNEL_ID variable in var.py.
+
+
+### Create the var.py file:
+
+You can find a *var.py_example* file in the project. Simply modify this file with your credentials and rename it to var.py:
+
+```bash
+mv var.py_example var.py
+```
+
+Populate it with your credentials and configuration:
+
+```python
+# var.py
+GOOGLE_CREDENTIALS_JSON = 'path/to/your/google-credentials.json'
+GOOGLE_CALENDAR_ID = 'your-google-calendar-id'
+DISCORD_BOT_TOKEN = 'your-discord-bot-token'
+DISCORD_GUILD_ID = 'your-discord-guild-id'
+DISCORD_CHANNEL_ID = 'your-discord-channel-id'  # ID of the voice channel where the meetings will be held
+SYNC_INTERVAL = 300  # Interval in seconds to sync events (5 minutes)
+DAYS_IN_FUTURE = 10  # Number of days in the future to fetch events
+```
+
 
 ## Running the Bot
 

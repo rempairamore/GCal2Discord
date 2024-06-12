@@ -8,37 +8,42 @@ import var
 import asyncio
 import json
 import os
-import hashlib
 import tarfile
+import time
+
+# Path to the file that stores synchronized events
+SYNCED_EVENTS_FILE = 'synced_events.json'
+EVENT_LOG_FILE = 'event.log'
+LOG_SIZE_LIMIT = 200 * 1024 * 1024  # 200 MB
 
 # Load synchronized events from file
 def load_synced_events():
-    if os.path.exists(var.SYNCED_EVENTS_FILE):
-        with open(var.SYNCED_EVENTS_FILE, 'r') as f:
+    if os.path.exists(SYNCED_EVENTS_FILE):
+        with open(SYNCED_EVENTS_FILE, 'r') as f:
             return json.load(f)
-    return {}
+    return {"events": []}
 
 # Save synchronized events to file
 def save_synced_events(synced_events):
-    with open(var.SYNCED_EVENTS_FILE, 'w') as f:
-        json.dump(synced_events, f)
+    with open(SYNCED_EVENTS_FILE, 'w') as f:
+        json.dump(synced_events, f, indent=4)
 
 # Log an event
 def log_event(message):
     timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     log_message = f"{timestamp} {message}\n"
-    with open(var.EVENT_LOG_FILE, 'a') as log_file:
+    with open(EVENT_LOG_FILE, 'a') as log_file:
         log_file.write(log_message)
     check_log_size()
 
 # Check the size of the log file and compress if needed
 def check_log_size():
-    if os.path.exists(var.EVENT_LOG_FILE) and os.path.getsize(var.EVENT_LOG_FILE) > var.LOG_SIZE_LIMIT:
+    if os.path.exists(EVENT_LOG_FILE) and os.path.getsize(EVENT_LOG_FILE) > LOG_SIZE_LIMIT:
         timestamp = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
         tar_filename = f"{timestamp}.tar.gz"
         with tarfile.open(tar_filename, "w:gz") as tar:
-            tar.add(var.EVENT_LOG_FILE)
-        os.remove(var.EVENT_LOG_FILE)
+            tar.add(EVENT_LOG_FILE)
+        os.remove(EVENT_LOG_FILE)
         log_event(f"Log file compressed to {tar_filename} and reset.")
 
 # Set up Google Calendar API
@@ -74,11 +79,6 @@ def get_discord_events():
         log_event(f"Failed to fetch Discord events: {response.content}")
         return []
 
-# Create a hash for the Google Calendar event
-def create_event_hash(event):
-    event_content = (event['updated'] + event.get('description', '') + event['start'].get('dateTime', event['start'].get('date'))).encode('utf-8')
-    return hashlib.sha1(event_content).hexdigest()
-
 # Create or update Discord event
 def create_or_update_discord_event(event, discord_event_id=None):
     url = f"https://discord.com/api/v9/guilds/{var.DISCORD_GUILD_ID}/scheduled-events"
@@ -106,6 +106,7 @@ def create_or_update_discord_event(event, discord_event_id=None):
     }
 
     response = method(url, json=data, headers=headers)
+    time.sleep(2)
     if response.status_code in (200, 201):
         log_event(f"Event {event['summary']} {'updated' if discord_event_id else 'created'} on Discord")
         return response.json().get('id')
@@ -120,6 +121,7 @@ def delete_discord_event(event_id):
         "Authorization": f"Bot {var.DISCORD_BOT_TOKEN}"
     }
     response = requests.delete(url, headers=headers)
+    time.sleep(2)
     if response.status_code == 204:
         log_event(f"Event {event_id} deleted from Discord")
     else:
@@ -149,29 +151,44 @@ async def sync_events_loop():
         discord_event_ids = {event['id'] for event in discord_events}
 
         for event in events:
+            time.sleep(2)
             event_id = event['id']
-            event_hash = create_event_hash(event)
-            if event_id in synced_events:
-                discord_event_id, old_event_hash = synced_events[event_id]
-                if event_hash != old_event_hash or discord_event_id not in discord_event_ids:
-                    log_event(f"Event {event['summary']} has changed or is missing on Discord, recreating on Discord")
-                    discord_event_id = create_or_update_discord_event(event)
-                    if discord_event_id:
-                        synced_events[event_id] = (discord_event_id, event_hash)
-                        save_synced_events(synced_events)
+            event_data = {
+                "date": event['start'].get('dateTime', event['start'].get('date')),
+                "title": event['summary'],
+                "channel": var.DISCORD_CHANNEL_ID,
+                "notes": event.get('description', '')
+            }
+
+            if any(e["google_event_id"] == event_id for e in synced_events["events"]):
+                for synced_event in synced_events["events"]:
+                    if synced_event["google_event_id"] == event_id:
+                        discord_event_id = synced_event["discord_event_id"]
+                        if discord_event_id not in discord_event_ids:
+                            log_event(f"Event {event['summary']} is missing on Discord, recreating")
+                            discord_event_id = create_or_update_discord_event(event, discord_event_id)
+                            if discord_event_id:
+                                synced_event["discord_event_id"] = discord_event_id
+                                synced_event.update(event_data)
+                                save_synced_events(synced_events)
+                        break
             else:
                 discord_event_id = create_or_update_discord_event(event)
                 if discord_event_id:
-                    synced_events[event_id] = (discord_event_id, event_hash)
+                    synced_events["events"].append({
+                        "google_event_id": event_id,
+                        "discord_event_id": discord_event_id,
+                        **event_data
+                    })
                     save_synced_events(synced_events)
 
         # Remove events from synced_events if they no longer exist in Google Calendar
         google_event_ids = {event['id'] for event in events}
-        for event_id in list(synced_events.keys()):
-            if event_id not in google_event_ids:
-                discord_event_id, _ = synced_events[event_id]
-                delete_discord_event(discord_event_id)
-                del synced_events[event_id]
+        for synced_event in list(synced_events["events"]):
+            time.sleep(2)
+            if synced_event["google_event_id"] not in google_event_ids:
+                delete_discord_event(synced_event["discord_event_id"])
+                synced_events["events"].remove(synced_event)
                 save_synced_events(synced_events)
 
     except Exception as e:
