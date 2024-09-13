@@ -1,4 +1,4 @@
-# Google Calendar to Discord Sync Bot
+# GCal2Discord - Google Calendar to Discord Sync Bot
 
 This bot syncs events from a Google Calendar to a Discord server. It periodically checks for new events, updates existing ones, and ensures events deleted from Discord are recreated if they still exist in Google Calendar. Google Calendar has authoritative control over the events.
 
