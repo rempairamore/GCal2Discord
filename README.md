@@ -140,7 +140,7 @@ To run the bot as a systemd service, follow these steps:
     [Service]
     User=yourusername
     WorkingDirectory=/path/to/your/project
-    ExecStart=/path/to/your/project/venv/bin/python /path/to/your/project/main.py
+    ExecStart=/usr/bin/python3 /path/to/your/project/main.py
     Restart=always
 
     [Install]
