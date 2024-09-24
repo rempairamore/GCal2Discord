@@ -1,5 +1,5 @@
-google-auth==2.6.6
-google-auth-oauthlib==0.5.2
-google-api-python-client==2.34.0
-discord.py==1.7.3
-requests==2.26.0
+google-auth>=2.6.6
+google-auth-oauthlib>=0.5.2
+google-api-python-client>=2.34.0
+discord.py>=2.3.2
+requests>=2.31.0
