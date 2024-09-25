@@ -165,5 +165,5 @@ To run the bot as a systemd service, follow these steps:
 
 ## License
 
-This project is licensed under the Creative Commons Attribution (CC BY 4.0) license.
+This project is licensed under the  "**GNU GENERAL PUBLIC LICENSE - Version 3** (29 June 2007)" license.
 
