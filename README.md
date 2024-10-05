@@ -1,13 +1,25 @@
 # GCal2Discord - Google Calendar to Discord Sync Bot
 
-This bot syncs events from a Google Calendar to a Discord server. It periodically checks for new events, updates existing ones, and ensures events deleted from Discord are recreated if they still exist in Google Calendar. Google Calendar has authoritative control over the events.
+This bot synchronizes events from a Google Calendar to a Discord server, creating scheduled voice channel meetings. It's designed to bridge the gap between your Google Calendar events and Discord voice channels, allowing for seamless transition from scheduled events to actual online meetings.
 
-## Features
+## Key Features
 
-- Sync events from Google Calendar to Discord.
-- Creates, updates, and deletes events based on Google Calendar changes.
-- Ensures events deleted from Discord are recreated if they still exist in Google Calendar.
-- Logs all operations to `event.log` and compresses the log if it exceeds 200 MB.
+- Syncs events from Google Calendar to Discord as scheduled voice channel meetings.
+- Creates, updates, and deletes Discord events based on Google Calendar changes.
+- Automatically sets up voice channels for each synced event, ready for participants to join when the meeting time arrives.
+- Ensures events accidentally deleted from Discord are recreated if they still exist in Google Calendar.
+- Provides a seamless workflow from scheduling in Google Calendar to joining meetings in Discord.
+- Logs all operations for easy troubleshooting and monitoring.
+
+## How It Works
+
+1. The bot regularly checks your specified Google Calendar for events.
+2. For each event found, it creates or updates a corresponding scheduled event in your Discord server.
+3. These Discord events are linked to voice channels, allowing participants to easily join the meeting when it's time.
+4. As changes occur in Google Calendar (new events, updates, or deletions), the bot reflects these changes in Discord.
+5. When the event time arrives, participants can join the associated Discord voice channel directly from the scheduled event.
+
+This integration allows teams to manage their schedule in Google Calendar while leveraging Discord's powerful voice chat features for their actual meetings.
 
 ## Prerequisites
 
