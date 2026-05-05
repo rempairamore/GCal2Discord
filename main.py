@@ -1,3 +1,10 @@
+"""
+GCal2Discord - Google Calendar to Discord Sync Bot
+
+Synchronizes events from a Google Calendar to a Discord server, creating
+scheduled voice channel meetings.
+"""
+
 import asyncio
 import datetime
 import json
@@ -111,6 +118,29 @@ def fetch_upcoming_events() -> list[dict]:
     return events_result.get("items", [])
 
 
+def filter_events_by_whitelist(events: list[dict]) -> list[dict]:
+    """Keep only events whose title contains at least one whitelist term.
+
+    If the whitelist is empty (or not defined in var.py), return events unchanged.
+    Matching is case-insensitive and looks for a substring in the event summary.
+    """
+    whitelist = [term.lower() for term in getattr(var, "TITLE_WHITELIST", []) if term]
+    if not whitelist:
+        return events
+
+    filtered = []
+    for event in events:
+        title = (event.get("summary") or "").lower()
+        if any(term in title for term in whitelist):
+            filtered.append(event)
+
+    logger.info(
+        "Whitelist active (%d term(s)): kept %d/%d events.",
+        len(whitelist), len(filtered), len(events),
+    )
+    return filtered
+
+
 # ---------------------------------------------------------------------------
 # Discord API helpers (synchronous, run via asyncio.to_thread)
 # ---------------------------------------------------------------------------
@@ -137,6 +167,36 @@ def fetch_discord_events() -> list[dict]:
 
     logger.error("Failed to fetch Discord events (%s): %s", response.status_code, response.text)
     return []
+
+
+def discord_event_exists(event_id: str) -> Optional[bool]:
+    """Verify whether a specific Discord scheduled event still exists.
+
+    Returns:
+        True  -> confirmed present on Discord
+        False -> confirmed gone (404)
+        None  -> could not determine (network or unexpected error)
+
+    Used to avoid duplicate creations when the list endpoint omits an event
+    (e.g. transient API hiccup, or event transitioning to ACTIVE state).
+    """
+    url = f"{DISCORD_API_BASE}/guilds/{var.DISCORD_GUILD_ID}/scheduled-events/{event_id}"
+    try:
+        response = requests.get(url, headers=_discord_headers(), timeout=HTTP_TIMEOUT)
+    except requests.RequestException as exc:
+        logger.error("Network error while verifying Discord event %s: %s", event_id, exc)
+        return None
+
+    if response.status_code == 200:
+        return True
+    if response.status_code == 404:
+        return False
+
+    logger.error(
+        "Unexpected status while verifying event %s (%s): %s",
+        event_id, response.status_code, response.text,
+    )
+    return None
 
 
 def _build_event_payload(event: dict) -> dict:
@@ -263,13 +323,33 @@ async def _sync_single_event(event: dict, discord_event_ids: set[str]) -> None:
 
     discord_id = entry["discord_event_id"]
     if discord_id not in discord_event_ids:
-        # We had synced it, but it's gone on Discord → recreate
-        logger.info("Event '%s' is missing on Discord, recreating.", event["summary"])
-        new_id = await asyncio.to_thread(create_or_update_discord_event, event)
-        if new_id:
-            entry["discord_event_id"] = new_id
-            entry.update(_event_summary(event))
-            save_synced_events(synced_events)
+        # Discord's list endpoint says it's gone — but verify directly before
+        # recreating, otherwise transient API hiccups (or events transitioning
+        # to ACTIVE state) silently produce duplicates.
+        await asyncio.sleep(RATE_LIMIT_PAUSE)
+        exists = await asyncio.to_thread(discord_event_exists, discord_id)
+
+        if exists is True:
+            logger.info(
+                "Event '%s' was reported missing but actually exists; updating instead.",
+                event["summary"],
+            )
+            updated_id = await asyncio.to_thread(create_or_update_discord_event, event, discord_id)
+            if updated_id:
+                entry.update(_event_summary(event))
+                save_synced_events(synced_events)
+        elif exists is False:
+            logger.info("Event '%s' is missing on Discord, recreating.", event["summary"])
+            new_id = await asyncio.to_thread(create_or_update_discord_event, event)
+            if new_id:
+                entry["discord_event_id"] = new_id
+                entry.update(_event_summary(event))
+                save_synced_events(synced_events)
+        else:
+            logger.warning(
+                "Could not verify status of event '%s'; skipping this cycle to avoid duplicates.",
+                event["summary"],
+            )
     else:
         # It still exists on Discord → update in place
         updated_id = await asyncio.to_thread(create_or_update_discord_event, event, discord_id)
@@ -296,6 +376,7 @@ async def sync_events_loop() -> None:
     """Periodically reconcile Google Calendar events with Discord scheduled events."""
     try:
         google_events = await asyncio.to_thread(fetch_upcoming_events)
+        google_events = filter_events_by_whitelist(google_events)
         discord_events = await asyncio.to_thread(fetch_discord_events)
         discord_event_ids = {e["id"] for e in discord_events}
 

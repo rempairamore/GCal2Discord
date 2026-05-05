@@ -9,9 +9,13 @@ DISCORD_BOT_TOKEN = 'YOUR_BOT_TOKEN'
 DISCORD_GUILD_ID = 'YOUR_GUIILD_ID'
 DISCORD_CHANNEL_ID = 'YOUR_CHANNEL_ID'
 
-
-
 # Synchronization interval in seconds
 SYNC_INTERVAL = 600
 # Number of days in the future to fetch events
 DAYS_IN_FUTURE = 10
+
+# Optional whitelist of keywords. If non-empty, only events whose title
+# contains at least one of these terms (case-insensitive) will be synced
+# to Discord. Leave as an empty list to sync every event.
+# Example: TITLE_WHITELIST = ['weekly', 'standup']
+TITLE_WHITELIST = []
