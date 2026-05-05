@@ -8,6 +8,7 @@ This bot synchronizes events from a Google Calendar to a Discord server, creatin
 - Creates, updates, and deletes Discord events based on Google Calendar changes.
 - Automatically sets up voice channels for each synced event, ready for participants to join when the meeting time arrives.
 - Ensures events accidentally deleted from Discord are recreated if they still exist in Google Calendar.
+- Optional title whitelist to sync only events containing specific keywords.
 - Provides a seamless workflow from scheduling in Google Calendar to joining meetings in Discord.
 - Logs all operations for easy troubleshooting and monitoring.
 
@@ -121,7 +122,31 @@ DISCORD_GUILD_ID = 'your-discord-guild-id'
 DISCORD_CHANNEL_ID = 'your-discord-channel-id'  # ID of the voice channel where the meetings will be held
 SYNC_INTERVAL = 300  # Interval in seconds to sync events (5 minutes)
 DAYS_IN_FUTURE = 10  # Number of days in the future to fetch events
+TITLE_WHITELIST = []  # Optional: only sync events whose title contains these keywords
 ```
+
+## Title Whitelist (optional)
+
+By default the bot syncs every event found in the Google Calendar. If you only want to expose a subset of events on Discord, you can use the `TITLE_WHITELIST` option in `var.py`.
+
+- If the list is **empty** (`TITLE_WHITELIST = []`), all events are synced — same behavior as before.
+- If the list contains one or more terms, only events whose title contains **at least one** of those terms are synced. The match is **case-insensitive** and works as a substring search.
+
+Example:
+
+```python
+TITLE_WHITELIST = ['weekly', 'standup']
+```
+
+With this configuration:
+- ✅ `Weekly meeting` → synced (contains "weekly")
+- ✅ `Daily standup` → synced (contains "standup")
+- ❌ `Project kickoff` → not synced
+- ❌ `Lunch break` → not synced
+
+This is useful when sharing a single Google Calendar between multiple Discord servers, or when you only want to publish certain types of meetings (e.g., recurring team syncs) while keeping other events private.
+
+If you change the whitelist while the bot is running, the next sync cycle will automatically remove any previously synced events that no longer match, and add any new ones that now do.
 
 
 ## Running the Bot
@@ -134,7 +159,11 @@ DAYS_IN_FUTURE = 10  # Number of days in the future to fetch events
 
 ## Logging
 
-The bot logs all its operations to `event.log`. If the log file exceeds 200 MB, it will be compressed into a `.tar.gz` file and a new log file will be started.
+The bot logs all its operations to `event.log` using a rotating file handler: when the file exceeds 200 MB it is automatically rotated, keeping a few previous backups. Logs are also sent to stdout, so when running as a systemd service you can follow them in real time with:
+
+```bash
+journalctl -u google-calendar-discord-bot -f
+```
 
 ## Running as a systemd Service
 
@@ -178,4 +207,3 @@ To run the bot as a systemd service, follow these steps:
 ## License
 
 This project is licensed under the  "**GNU GENERAL PUBLIC LICENSE - Version 3** (29 June 2007)" license.
-
